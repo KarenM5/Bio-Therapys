@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 class MainScreen extends StatelessWidget {
-  const MainScreen({super.key});
+  final String username;
+  const MainScreen({super.key, required this.username});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BIO-THERAPY\'S'),
+        title: Text('BIO-THERAPY\'S – $username'),
         backgroundColor: Colors.blue[800],
       ),
       body: Padding(

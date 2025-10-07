@@ -21,10 +21,8 @@ const dbPromise = open({
 (async () => {
   const db = await dbPromise;
 
-  // Activar soporte para claves foráneas
   await db.exec("PRAGMA foreign_keys = ON;");
 
-  // 🔹 Tabla de usuarios
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +34,17 @@ const dbPromise = open({
     );
   `);
 
-  // 🔹 Datos biométricos (plantillas faciales)
+  const existingAdmin = await db.get("SELECT * FROM users WHERE email = ?", ["admin"]);
+  if (!existingAdmin) {
+    const bcrypt = await import('bcrypt');
+    const hashedPassword = await bcrypt.default.hash("admin", 10);
+    await db.run(
+      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+      ["Administrador", "admin", hashedPassword, "therapist"]
+    );
+    console.log("✅ Usuario admin creado");
+  }
+
   await db.exec(`
     CREATE TABLE IF NOT EXISTS biometric_data (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,7 +55,6 @@ const dbPromise = open({
     );
   `);
 
-  // 🔹 Perfil de pacientes
   await db.exec(`
     CREATE TABLE IF NOT EXISTS patient_profile (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,7 +68,6 @@ const dbPromise = open({
     );
   `);
 
-  // 🔹 Perfil de terapeutas
   await db.exec(`
     CREATE TABLE IF NOT EXISTS therapist_profile (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +80,6 @@ const dbPromise = open({
     );
   `);
 
-  // 🔹 Registros clínicos (HRV, observaciones)
   await db.exec(`
     CREATE TABLE IF NOT EXISTS patient_records (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,7 +93,6 @@ const dbPromise = open({
     );
   `);
 
-  // 🔹 Sesiones terapeuta-paciente
   await db.exec(`
     CREATE TABLE IF NOT EXISTS therapy_sessions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,7 +107,6 @@ const dbPromise = open({
     );
   `);
 
-  // 🔹 Alertas clínicas o de seguimiento
   await db.exec(`
     CREATE TABLE IF NOT EXISTS alerts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

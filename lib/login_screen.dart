@@ -1,8 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'main_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  Future<void> loginUser() async {
+    final response = await http.post(
+      Uri.parse('http://10.0.2.2:3000/login'), // usa 10.0.2.2 si estás en emulador
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'email': usernameController.text.trim(),
+        'password': passwordController.text.trim(),
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final String name = data['user']['name'];
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MainScreen(username: name),
+        ),
+      );
+    } else {
+      final error = json.decode(response.body)['error'];
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Error de login'),
+          content: Text(error),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +70,8 @@ class LoginScreen extends StatelessWidget {
             const Text('Sign in to continue'),
             const SizedBox(height: 32),
             TextField(
-              decoration: InputDecoration(
+              controller: usernameController,
+              decoration: const InputDecoration(
                 labelText: 'Username',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.person),
@@ -30,8 +79,9 @@ class LoginScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             TextField(
+              controller: passwordController,
               obscureText: true,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Password',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.lock),
@@ -43,12 +93,7 @@ class LoginScreen extends StatelessWidget {
                 backgroundColor: Colors.blue[800],
                 minimumSize: const Size(double.infinity, 50),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MainScreen()),
-                );
-              },
+              onPressed: loginUser,
               child: const Text('LOGIN'),
             ),
           ],

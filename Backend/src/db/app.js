@@ -1,7 +1,7 @@
 import express from "express";
 import bodyParser from "body-parser";
 import bcrypt from "bcrypt";
-import dbPromise from "./db/init.js";
+import dbPromise from "./init.js";
 
 const app = express();
 app.use(bodyParser.json());
@@ -35,7 +35,37 @@ app.get("/users", async (req, res) => {
   }
 });
 
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const db = await dbPromise;
+    const user = await db.get("SELECT * FROM users WHERE email = ?", [email]);
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Contraseña incorrecta" });
+    }
+
+    res.json({
+      message: "Login exitoso",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error en el login" });
+  }
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(` Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`🟢 Servidor corriendo en http://localhost:${PORT}`);
 });
