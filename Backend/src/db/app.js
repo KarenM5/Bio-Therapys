@@ -2,10 +2,16 @@ import express from "express";
 import bodyParser from "body-parser";
 import bcrypt from "bcrypt";
 import dbPromise from "./init.js";
+import loginRouter from "../routes/login.js";
 
-const app = express();
+const app = express(); // ← ¡Esto debe ir antes de usar `app`!
+
 app.use(bodyParser.json());
 
+// 🔗 Conectar ruta modular de login
+app.use("/login", loginRouter);
+
+// 🧑‍💻 Crear usuario
 app.post("/users", async (req, res) => {
   const { name, email, password, role } = req.body;
   try {
@@ -24,6 +30,7 @@ app.post("/users", async (req, res) => {
   }
 });
 
+// 📋 Obtener usuarios
 app.get("/users", async (req, res) => {
   try {
     const db = await dbPromise;
@@ -35,6 +42,7 @@ app.get("/users", async (req, res) => {
   }
 });
 
+// 🔐 Login directo (puedes eliminar esto si usas loginRouter)
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
