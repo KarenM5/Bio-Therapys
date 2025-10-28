@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../db/database_helper.dart';
+
 
 class AddPatientScreen extends StatefulWidget {
   const AddPatientScreen({super.key});
@@ -12,87 +15,280 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
-  final TextEditingController _diseaseController = TextEditingController();
+  final TextEditingController _heightController = TextEditingController();
   final TextEditingController _weightController = TextEditingController();
+  final TextEditingController _diseaseController = TextEditingController();
+  final TextEditingController _hrvController = TextEditingController();
 
-  void _savePatient() async {
+  bool _isSaving = false;
+  bool _consentGiven = false;
+  File? _imageFile;
+
+  // Permite tomar o seleccionar una foto del paciente
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedImage =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (pickedImage != null) {
+      setState(() => _imageFile = File(pickedImage.path));
+    }
+  }
+
+  Future<void> _savePatient() async {
+    if (!_consentGiven) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Debe otorgar el consentimiento de uso de datos biométricos'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+
+      final now = DateTime.now();
+
       final patient = {
         'name': _nameController.text.trim(),
         'lastname': _lastNameController.text.trim(),
+        'email': _emailController.text.trim(),
         'age': int.tryParse(_ageController.text) ?? 0,
-        'disease': _diseaseController.text.trim(),
+        'height': double.tryParse(_heightController.text) ?? 0.0,
         'weight': double.tryParse(_weightController.text) ?? 0.0,
+        'disease': _diseaseController.text.trim(),
+        'hrv': double.tryParse(_hrvController.text) ?? 0.0,
+        'photo_path': _imageFile?.path ?? '',
+        'consent': _consentGiven ? 1 : 0,
+        'created_at': now.toIso8601String(),
+        'updated_at': now.toIso8601String(),
       };
 
       await DatabaseHelper.instance.insertPatient(patient);
 
+      setState(() => _isSaving = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Paciente agregado correctamente')),
+        const SnackBar(
+          content: Text('✅ Paciente agregado correctamente'),
+          backgroundColor: Colors.green,
+        ),
       );
 
       _formKey.currentState!.reset();
+      setState(() {
+        _imageFile = null;
+        _consentGiven = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
         title: const Text('Agregar Paciente'),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
+        elevation: 2,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Campo obligatorio' : null,
+        padding: const EdgeInsets.all(16.0),
+        child: Card(
+          elevation: 4,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                children: [
+                  const Text(
+                    'Registro de Paciente',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 📧 Correo / ID
+                  _buildTextField(
+                    controller: _emailController,
+                    label: 'Correo electrónico / ID',
+                    icon: Icons.email,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) => v!.isEmpty
+                        ? 'Campo obligatorio'
+                        : (!v.contains('@') ? 'Correo no válido' : null),
+                  ),
+
+                  // 👤 Nombre
+                  _buildTextField(
+                    controller: _nameController,
+                    label: 'Nombre',
+                    icon: Icons.person,
+                  ),
+
+                  // 👥 Apellido
+                  _buildTextField(
+                    controller: _lastNameController,
+                    label: 'Apellido',
+                    icon: Icons.badge,
+                  ),
+
+                  // 🎂 Edad
+                  _buildTextField(
+                    controller: _ageController,
+                    label: 'Edad',
+                    icon: Icons.calendar_today,
+                    keyboardType: TextInputType.number,
+                  ),
+
+                  // 📏 Altura
+                  _buildTextField(
+                    controller: _heightController,
+                    label: 'Altura (cm)',
+                    icon: Icons.height,
+                    keyboardType: TextInputType.number,
+                  ),
+
+                  // ⚖️ Peso
+                  _buildTextField(
+                    controller: _weightController,
+                    label: 'Peso (kg)',
+                    icon: Icons.monitor_weight,
+                    keyboardType: TextInputType.number,
+                  ),
+
+                  // ❤️ HRV o frecuencia cardíaca
+                  _buildTextField(
+                    controller: _hrvController,
+                    label: 'Frecuencia cardíaca / HRV inicial',
+                    icon: Icons.favorite,
+                    keyboardType: TextInputType.number,
+                  ),
+
+                  // 🤒 Enfermedad
+                  _buildTextField(
+                    controller: _diseaseController,
+                    label: 'Enfermedad',
+                    icon: Icons.local_hospital,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 📷 Fotografía del paciente
+                  Row(
+                    children: [
+                      _imageFile != null
+                          ? CircleAvatar(
+                              radius: 35,
+                              backgroundImage: FileImage(_imageFile!),
+                            )
+                          : const CircleAvatar(
+                              radius: 35,
+                              backgroundColor: Colors.teal,
+                              child: Icon(Icons.person, color: Colors.white),
+                            ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _pickImage,
+                          icon: const Icon(Icons.camera_alt),
+                          label: const Text('Subir Fotografía'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.teal,
+                            side: const BorderSide(color: Colors.teal),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // ✅ Consentimiento de datos biométricos
+                  SwitchListTile(
+                    value: _consentGiven,
+                    onChanged: (v) => setState(() => _consentGiven = v),
+                    title: const Text(
+                      'Autorizo el uso de mis datos biométricos con fines médicos y de seguimiento terapéutico',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                    activeColor: Colors.teal,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 🕒 Fecha automática
+                  Text(
+                    'Fecha de registro: ${DateTime.now().toLocal().toString().split(".").first}',
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                    textAlign: TextAlign.right,
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  _isSaving
+                      ? const Center(child: CircularProgressIndicator())
+                      : ElevatedButton.icon(
+                          onPressed: _savePatient,
+                          icon: const Icon(Icons.save),
+                          label: const Text(
+                            'Guardar Paciente',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.teal,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                ],
               ),
-              TextFormField(
-                controller: _lastNameController,
-                decoration: const InputDecoration(labelText: 'Apellido'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Campo obligatorio' : null,
-              ),
-              TextFormField(
-                controller: _ageController,
-                decoration: const InputDecoration(labelText: 'Edad'),
-                keyboardType: TextInputType.number,
-              ),
-              TextFormField(
-                controller: _diseaseController,
-                decoration: const InputDecoration(labelText: 'Enfermedad'),
-              ),
-              TextFormField(
-                controller: _weightController,
-                decoration: InputDecoration(
-                  labelText: 'Peso',
-                  suffixText: 'kg',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 30),
-              ElevatedButton.icon(
-                onPressed: _savePatient,
-                icon: const Icon(Icons.save),
-                label: const Text('Guardar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: TextFormField(
+        controller: controller,
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: Colors.teal),
+          labelText: label,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+        ),
+        keyboardType: keyboardType,
+        validator: validator ??
+            (value) =>
+                value == null || value.isEmpty ? 'Campo obligatorio' : null,
       ),
     );
   }

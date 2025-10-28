@@ -28,8 +28,25 @@ class DatabaseHelper {
         age INTEGER,
         disease TEXT,
         weight REAL
+        height REAL,
+        heart_rate INTEGER,
+        email TEXT,
+        image_path TEXT,
+        consent INTEGER,
+        registration_date TEXT
       )
     ''');
+  }
+
+   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE patients ADD COLUMN height REAL');
+      await db.execute('ALTER TABLE patients ADD COLUMN heart_rate INTEGER');
+      await db.execute('ALTER TABLE patients ADD COLUMN email TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN image_path TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN consent INTEGER');
+      await db.execute('ALTER TABLE patients ADD COLUMN registration_date TEXT');
+    }
   }
 
   Future<int> insertPatient(Map<String, dynamic> patient) async {
