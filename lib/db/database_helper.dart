@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+//import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -16,7 +17,13 @@ class DatabaseHelper {
   Future<Database> _initDB(String filePath) async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _upgradeDB,
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -25,27 +32,27 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT,
         lastname TEXT,
-        age INTEGER,
-        disease TEXT,
-        weight REAL
-        height REAL,
-        heart_rate INTEGER,
         email TEXT,
-        image_path TEXT,
+        age INTEGER,
+        height REAL,
+        weight REAL,
+        disease TEXT,
+        heartRate INTEGER,
         consent INTEGER,
-        registration_date TEXT
+        imagePath TEXT,
+        createdAt TEXT
       )
     ''');
   }
 
-   Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await db.execute('ALTER TABLE patients ADD COLUMN height REAL');
-      await db.execute('ALTER TABLE patients ADD COLUMN heart_rate INTEGER');
       await db.execute('ALTER TABLE patients ADD COLUMN email TEXT');
-      await db.execute('ALTER TABLE patients ADD COLUMN image_path TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN height REAL');
+      await db.execute('ALTER TABLE patients ADD COLUMN heartRate INTEGER');
+      await db.execute('ALTER TABLE patients ADD COLUMN imagePath TEXT');
       await db.execute('ALTER TABLE patients ADD COLUMN consent INTEGER');
-      await db.execute('ALTER TABLE patients ADD COLUMN registration_date TEXT');
+      await db.execute('ALTER TABLE patients ADD COLUMN createdAt TEXT');
     }
   }
 
@@ -56,7 +63,7 @@ class DatabaseHelper {
 
   Future<List<Map<String, dynamic>>> getPatients() async {
     final db = await instance.database;
-    return await db.query('patients');
+    return await db.query('patients', orderBy: 'id DESC');
   }
 
   Future<int> deletePatient(int id) async {

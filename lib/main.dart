@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'screens/home_screen.dart'; // 👈 Importamos tu HomeScreen
 
+
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 

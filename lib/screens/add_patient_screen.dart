@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../db/database_helper.dart';
 
-
 class AddPatientScreen extends StatefulWidget {
   const AddPatientScreen({super.key});
 
@@ -13,6 +12,8 @@ class AddPatientScreen extends StatefulWidget {
 
 class _AddPatientScreenState extends State<AddPatientScreen> {
   final _formKey = GlobalKey<FormState>();
+  final picker = ImagePicker();
+
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -26,11 +27,9 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
   bool _consentGiven = false;
   File? _imageFile;
 
-  // Permite tomar o seleccionar una foto del paciente
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
     final pickedImage =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (pickedImage != null) {
       setState(() => _imageFile = File(pickedImage.path));
     }
@@ -40,8 +39,7 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
     if (!_consentGiven) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content:
-              Text('Debe otorgar el consentimiento de uso de datos biométricos'),
+          content: Text('Debe otorgar el consentimiento de uso de datos biométricos'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -68,22 +66,30 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
         'updated_at': now.toIso8601String(),
       };
 
-      await DatabaseHelper.instance.insertPatient(patient);
+      try {
+        await DatabaseHelper.instance.insertPatient(patient);
 
-      setState(() => _isSaving = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Paciente agregado correctamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      _formKey.currentState!.reset();
-      setState(() {
-        _imageFile = null;
-        _consentGiven = false;
-      });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Paciente agregado correctamente'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          await Future.delayed(const Duration(milliseconds: 800));
+          setState(() => _isSaving = false);
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error al guardar: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -96,151 +102,171 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         elevation: 2,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Card(
-          elevation: 4,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Form(
-              key: _formKey,
-              child: ListView(
+      body: _isSaving
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    'Registro de Paciente',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.teal,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // 📧 Correo / ID
-                  _buildTextField(
-                    controller: _emailController,
-                    label: 'Correo electrónico / ID',
-                    icon: Icons.email,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) => v!.isEmpty
-                        ? 'Campo obligatorio'
-                        : (!v.contains('@') ? 'Correo no válido' : null),
-                  ),
-
-                  // 👤 Nombre
-                  _buildTextField(
-                    controller: _nameController,
-                    label: 'Nombre',
-                    icon: Icons.person,
-                  ),
-
-                  // 👥 Apellido
-                  _buildTextField(
-                    controller: _lastNameController,
-                    label: 'Apellido',
-                    icon: Icons.badge,
-                  ),
-
-                  // 🎂 Edad
-                  _buildTextField(
-                    controller: _ageController,
-                    label: 'Edad',
-                    icon: Icons.calendar_today,
-                    keyboardType: TextInputType.number,
-                  ),
-
-                  // 📏 Altura
-                  _buildTextField(
-                    controller: _heightController,
-                    label: 'Altura (cm)',
-                    icon: Icons.height,
-                    keyboardType: TextInputType.number,
-                  ),
-
-                  // ⚖️ Peso
-                  _buildTextField(
-                    controller: _weightController,
-                    label: 'Peso (kg)',
-                    icon: Icons.monitor_weight,
-                    keyboardType: TextInputType.number,
-                  ),
-
-                  // ❤️ HRV o frecuencia cardíaca
-                  _buildTextField(
-                    controller: _hrvController,
-                    label: 'Frecuencia cardíaca / HRV inicial',
-                    icon: Icons.favorite,
-                    keyboardType: TextInputType.number,
-                  ),
-
-                  // 🤒 Enfermedad
-                  _buildTextField(
-                    controller: _diseaseController,
-                    label: 'Enfermedad',
-                    icon: Icons.local_hospital,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 📷 Fotografía del paciente
-                  Row(
-                    children: [
-                      _imageFile != null
-                          ? CircleAvatar(
-                              radius: 35,
-                              backgroundImage: FileImage(_imageFile!),
-                            )
-                          : const CircleAvatar(
-                              radius: 35,
-                              backgroundColor: Colors.teal,
-                              child: Icon(Icons.person, color: Colors.white),
-                            ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _pickImage,
-                          icon: const Icon(Icons.camera_alt),
-                          label: const Text('Subir Fotografía'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.teal,
-                            side: const BorderSide(color: Colors.teal),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ✅ Consentimiento de datos biométricos
-                  SwitchListTile(
-                    value: _consentGiven,
-                    onChanged: (v) => setState(() => _consentGiven = v),
-                    title: const Text(
-                      'Autorizo el uso de mis datos biométricos con fines médicos y de seguimiento terapéutico',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                    activeColor: Colors.teal,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // 🕒 Fecha automática
+                  CircularProgressIndicator(color: Colors.teal),
+                  SizedBox(height: 20),
                   Text(
-                    'Fecha de registro: ${DateTime.now().toLocal().toString().split(".").first}',
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
-                    textAlign: TextAlign.right,
+                    'Guardando paciente...',
+                    style: TextStyle(fontSize: 16, color: Colors.black54),
                   ),
+                ],
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Form(
+                    key: _formKey,
+                    child: ListView(
+                      children: [
+                        const Text(
+                          'Registro de Paciente',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
 
-                  const SizedBox(height: 30),
+                        // Email / ID
+                        _buildTextField(
+                          controller: _emailController,
+                          label: 'Correo electrónico / ID',
+                          icon: Icons.email,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (v) => v!.isEmpty
+                              ? 'Campo obligatorio'
+                              : (!v.contains('@')
+                                  ? 'Correo no válido'
+                                  : null),
+                        ),
 
-                  _isSaving
-                      ? const Center(child: CircularProgressIndicator())
-                      : ElevatedButton.icon(
+                        // Nombre
+                        _buildTextField(
+                          controller: _nameController,
+                          label: 'Nombre',
+                          icon: Icons.person,
+                        ),
+
+                        // Apellido
+                        _buildTextField(
+                          controller: _lastNameController,
+                          label: 'Apellido',
+                          icon: Icons.badge,
+                        ),
+
+                        // Edad
+                        _buildTextField(
+                          controller: _ageController,
+                          label: 'Edad',
+                          icon: Icons.calendar_today,
+                          keyboardType: TextInputType.number,
+                        ),
+
+                        // Altura
+                        _buildTextField(
+                          controller: _heightController,
+                          label: 'Altura (cm)',
+                          icon: Icons.height,
+                          keyboardType: TextInputType.number,
+                        ),
+
+                        // Peso
+                        _buildTextField(
+                          controller: _weightController,
+                          label: 'Peso (kg)',
+                          icon: Icons.monitor_weight,
+                          keyboardType: TextInputType.number,
+                        ),
+
+                        // HRV
+                        _buildTextField(
+                          controller: _hrvController,
+                          label: 'Frecuencia cardíaca / HRV inicial',
+                          icon: Icons.favorite,
+                          keyboardType: TextInputType.number,
+                        ),
+
+                        // Enfermedad
+                        _buildTextField(
+                          controller: _diseaseController,
+                          label: 'Enfermedad',
+                          icon: Icons.local_hospital,
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Imagen
+                        Row(
+                          children: [
+                            _imageFile != null
+                                ? CircleAvatar(
+                                    radius: 35,
+                                    backgroundImage: FileImage(_imageFile!),
+                                  )
+                                : const CircleAvatar(
+                                    radius: 35,
+                                    backgroundColor: Colors.teal,
+                                    child: Icon(Icons.person,
+                                        color: Colors.white),
+                                  ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _pickImage,
+                                icon: const Icon(Icons.camera_alt),
+                                label: const Text('Subir Fotografía'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.teal,
+                                  side: const BorderSide(color: Colors.teal),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Consentimiento
+                        SwitchListTile(
+                          value: _consentGiven,
+                          onChanged: (v) => setState(() => _consentGiven = v),
+                          title: const Text(
+                            'Autorizo el uso de mis datos biométricos con fines médicos y de seguimiento terapéutico',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          activeColor: Colors.teal,
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // Fecha automática
+                        Text(
+                          'Fecha de registro: ${DateTime.now().toLocal().toString().split(".").first}',
+                          style:
+                              const TextStyle(fontSize: 13, color: Colors.grey),
+                          textAlign: TextAlign.right,
+                        ),
+
+                        const SizedBox(height: 30),
+
+                        ElevatedButton.icon(
                           onPressed: _savePatient,
                           icon: const Icon(Icons.save),
                           label: const Text(
@@ -250,18 +276,19 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.teal,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
                         ),
-                ],
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
