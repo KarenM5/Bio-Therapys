@@ -121,8 +121,8 @@ class _ViewPatientsScreenState extends State<ViewPatientsScreen> {
                                       ? '${patient['weight']} kg'
                                       : '-')),
                               DataCell(Text(
-                                  patient['heart_rate'] != null
-                                      ? '${patient['heart_rate']} bpm'
+                                  patient['hrv'] != null
+                                      ? '${patient['hrv']} bpm'
                                       : '-')),
                               DataCell(Text(patient['disease'] ?? 'N/A')),
                               DataCell(Row(

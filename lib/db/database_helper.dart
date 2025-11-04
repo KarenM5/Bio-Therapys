@@ -1,6 +1,5 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-//import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -10,7 +9,7 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('biotherapys.db');
+    _database = await _initDB('patients.db');
     return _database!;
   }
 
@@ -20,54 +19,46 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 1,
       onCreate: _createDB,
-      onUpgrade: _upgradeDB,
     );
   }
 
-  Future<void> _createDB(Database db, int version) async {
+  Future _createDB(Database db, int version) async {
     await db.execute('''
       CREATE TABLE patients (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
+        name TEXT NOT NULL,
         lastname TEXT,
-        email TEXT,
         age INTEGER,
-        height REAL,
         weight REAL,
-        disease TEXT,
-        heartRate INTEGER,
-        consent INTEGER,
-        imagePath TEXT,
-        createdAt TEXT
+        heart_rate INTEGER,
+        disease TEXT
       )
     ''');
   }
 
-  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      await db.execute('ALTER TABLE patients ADD COLUMN email TEXT');
-      await db.execute('ALTER TABLE patients ADD COLUMN height REAL');
-      await db.execute('ALTER TABLE patients ADD COLUMN heartRate INTEGER');
-      await db.execute('ALTER TABLE patients ADD COLUMN imagePath TEXT');
-      await db.execute('ALTER TABLE patients ADD COLUMN consent INTEGER');
-      await db.execute('ALTER TABLE patients ADD COLUMN createdAt TEXT');
-    }
-  }
-
+  // Insertar paciente
   Future<int> insertPatient(Map<String, dynamic> patient) async {
     final db = await instance.database;
     return await db.insert('patients', patient);
   }
 
+  // Obtener todos los pacientes
   Future<List<Map<String, dynamic>>> getPatients() async {
     final db = await instance.database;
     return await db.query('patients', orderBy: 'id DESC');
   }
 
+  // Eliminar paciente por ID
   Future<int> deletePatient(int id) async {
     final db = await instance.database;
     return await db.delete('patients', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Cerrar base de datos
+  Future close() async {
+    final db = await instance.database;
+    db.close();
   }
 }
