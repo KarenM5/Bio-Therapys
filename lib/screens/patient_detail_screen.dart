@@ -1,19 +1,53 @@
 import 'package:flutter/material.dart';
+import '../db/database_helper.dart';
 
-class PatientDetailScreen extends StatelessWidget {
+class PatientDetailScreen extends StatefulWidget {
   final Map<String, dynamic> patient;
 
   const PatientDetailScreen({super.key, required this.patient});
 
   @override
+  State<PatientDetailScreen> createState() => _PatientDetailScreenState();
+}
+
+class _PatientDetailScreenState extends State<PatientDetailScreen> {
+  List<Map<String, dynamic>> _symptoms = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSymptoms();
+  }
+
+  Future<void> _loadSymptoms() async {
+    // Aseguramos que el ID sea int
+    final dynamic rawId = widget.patient['id'];
+    final int patientId = (rawId is int)
+        ? rawId
+        : int.tryParse(rawId.toString()) ?? 0;
+
+    if (patientId == 0) {
+      // No hay id válido: evitar consulta
+      setState(() => _symptoms = []);
+      return;
+    }
+
+    // Llamamos al método correcto del DatabaseHelper
+    final data = await DatabaseHelper.instance.getSymptomsByPatientId(
+      patientId,
+    );
+    setState(() {
+      _symptoms = data;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final patient = widget.patient;
     return Scaffold(
       backgroundColor: Colors.teal.shade50,
       appBar: AppBar(
-        title: Text(
-          'Expediente de ${patient['name']}',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text('Expediente de ${patient['name']}'),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
       ),
@@ -21,8 +55,9 @@ class PatientDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Card(
           elevation: 6,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: ListView(
@@ -32,7 +67,11 @@ class PatientDetailScreen extends StatelessWidget {
                   child: CircleAvatar(
                     radius: 45,
                     backgroundColor: Colors.teal.shade200,
-                    child: const Icon(Icons.person, size: 50, color: Colors.white),
+                    child: const Icon(
+                      Icons.person,
+                      size: 50,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -50,17 +89,59 @@ class PatientDetailScreen extends StatelessWidget {
                 _infoRow('🆔 ID', patient['id'].toString()),
                 _infoRow('🎂 Edad', '${patient['age'] ?? '-'} años'),
                 _infoRow('⚖️ Peso', '${patient['weight'] ?? '-'} kg'),
-                _infoRow('💓 Frecuencia cardíaca',
-                    '${patient['heart_rate'] ?? '-'} bpm'),
-                _infoRow('🦠 Enfermedad', patient['disease'] ?? 'No registrada'),
+                _infoRow(
+                  '💓 Frecuencia cardíaca',
+                  '${patient['heart_rate'] ?? '-'} bpm',
+                ),
+                _infoRow(
+                  '🦠 Enfermedad',
+                  patient['disease'] ?? 'No registrada',
+                ),
+                const SizedBox(height: 25),
+                const Divider(thickness: 1.5),
+                const SizedBox(height: 10),
+                const Text(
+                  '🩺 Historial de Síntomas',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.teal,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _symptoms.isEmpty
+                    ? const Text('No hay síntomas registrados.')
+                    : Column(
+                        children: _symptoms.map((s) {
+                          final dateText = (s['date'] ?? '').toString();
+                          String prettyDate;
+                          try {
+                            prettyDate = DateTime.parse(
+                              dateText,
+                            ).toLocal().toString().split('.')[0];
+                          } catch (_) {
+                            prettyDate = dateText;
+                          }
+                          return ListTile(
+                            leading: const Icon(
+                              Icons.medical_information,
+                              color: Colors.teal,
+                            ),
+                            title: Text(s['description'] ?? ''),
+                            subtitle: Text(prettyDate),
+                          );
+                        }).toList(),
+                      ),
                 const SizedBox(height: 25),
                 Center(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.teal,
                       foregroundColor: Colors.white,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
                     ),
                     icon: const Icon(Icons.arrow_back),
                     label: const Text('Regresar'),
@@ -81,12 +162,16 @@ class PatientDetailScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(title,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-          Text(value,
-              style: const TextStyle(fontSize: 16, color: Colors.black87)),
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+          ),
         ],
       ),
     );
   }
-}
+} 
