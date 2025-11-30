@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../db/database_helper.dart';
+import '../services/sync_service.dart'; 
 
 class AddPatientScreen extends StatefulWidget {
   const AddPatientScreen({super.key});
@@ -27,9 +28,14 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
         'weight': double.tryParse(_weightController.text),
         'heart_rate': int.tryParse(_heartRateController.text),
         'disease': _diseaseController.text,
+        'synced': 0, // 👈 Para saber si ya se subió al servidor
       };
 
+      // Guardar en SQLite como siempre
       await DatabaseHelper.instance.insertPatient(patient);
+
+      // 🔄 Intentar sincronizar al backend si hay internet
+      await SyncService().syncLocalPatientsToServer();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -37,7 +43,7 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
         );
       }
 
-      Navigator.pop(context, true); // ✅ Devuelve true al cerrar
+      Navigator.pop(context, true);
     }
   }
 
@@ -56,15 +62,10 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
           child: ListView(
             children: [
               _buildTextField(_nameController, 'Nombre', 'Ingrese el nombre'),
-              _buildTextField(
-                  _lastnameController, 'Apellido', 'Ingrese el apellido'),
-              _buildTextField(_ageController, 'Edad', 'Ingrese la edad',
-                  inputType: TextInputType.number),
-              _buildTextField(_weightController, 'Peso (kg)', 'Ingrese el peso',
-                  inputType: TextInputType.number),
-              _buildTextField(_heartRateController, 'Frecuencia (bpm)',
-                  'Ingrese la frecuencia cardiaca',
-                  inputType: TextInputType.number),
+              _buildTextField(_lastnameController, 'Apellido', 'Ingrese el apellido'),
+              _buildTextField(_ageController, 'Edad', 'Ingrese la edad', inputType: TextInputType.number),
+              _buildTextField(_weightController, 'Peso (kg)', 'Ingrese el peso', inputType: TextInputType.number),
+              _buildTextField(_heartRateController, 'Frecuencia (bpm)', 'Ingrese la frecuencia cardiaca', inputType: TextInputType.number),
               _buildTextField(_diseaseController, 'Enfermedad', 'Ingrese la enfermedad'),
               const SizedBox(height: 20),
               ElevatedButton.icon(
@@ -84,8 +85,12 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, String hint,
-      {TextInputType inputType = TextInputType.text}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    String hint, {
+    TextInputType inputType = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: TextFormField(

@@ -36,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final apiUrl = dotenv.env['API_URL'];
 
     try {
-      // 🔹 Intentar login con el servidor remoto
+      // 🔹 PRIMERO: Intentar login con el servidor remoto (API)
       final response = await http.post(
         Uri.parse('$apiUrl/login'),
         headers: {'Content-Type': 'application/json'},
@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        // Guarda o sincroniza el usuario en SQLite local
+        // Guardar / sincronizar usuario en SQLite
         await db.insertUser({
           'id': data['id'],
           'username': data['username'],
@@ -60,8 +60,9 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception('Credenciales incorrectas');
       }
     } catch (e) {
-      // 🔸 Si falla conexión o API, intentar login local
+      // 🔸 SI FALLA EL SERVIDOR → MODO OFFLINE
       final user = await db.getUser(username, password);
+
       if (user != null) {
         _goToHome(user['role'], user['id'], user['username']);
       } else {
@@ -78,11 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.pushReplacementNamed(
       context,
       '/home',
-      arguments: {
-        'role': role,
-        'patientId': id,
-        'patientName': username,
-      },
+      arguments: {'role': role, 'patientId': id, 'patientName': username},
     );
   }
 
@@ -173,8 +170,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF00695C),
                                     foregroundColor: Colors.white,
-                                    minimumSize:
-                                        const Size(double.infinity, 50),
+                                    minimumSize: const Size(
+                                      double.infinity,
+                                      50,
+                                    ),
                                   ),
                                 ),
                           const SizedBox(height: 15),
